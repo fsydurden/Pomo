@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Focus Timer</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg: #0a0a0f;
+            --surface: #12121a;
+            --border: #1e1e2e;
+            --text: #e4e4e7;
+            --muted: #71717a;
+            --accent: #8b5cf6;
+            --accent-dim: #7c3aed22;
+            --success: #34d399;
+            --warm: #fb923c;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            height: 100vh;
+            overflow: hidden;
+            user-select: none;
+        }
+        .app {
+            display: grid;
+            grid-template-columns: 1fr 340px;
+            height: 100vh;
+        }
+        .timer-panel {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 32px;
+            padding: 48px;
+        }
+        .mode-tabs {
+            display: flex;
+            gap: 4px;
+            background: var(--surface);
+            border-radius: 12px;
+            padding: 4px;
+            border: 1px solid var(--border);
+        }
+        .mode-tab {
+            padding: 8px 20px;
+            border-radius: 8px;
+            border: none;
+            background: transparent;
+            color: var(--muted);
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .mode-tab.active {
+            background: var(--accent);
+            color: white;
+        }
+        .timer-display {
+            position: relative;
+            width: 280px;
+            height: 280px;
+        }
+        .timer-ring {
+            width: 100%;
+            height: 100%;
+            transform: rotate(-90deg);
+        }
+        .timer-ring-bg {
+            fill: none;
+            stroke: var(--border);
+            stroke-width: 4;
+        }
+        .timer-ring-progress {
+            fill: none;
+            stroke: var(--accent);
+            stroke-width: 4;
+            stroke-linecap: round;
+            stroke-dasharray: 816.81;
+            stroke-dashoffset: 0;
+            transition: stroke-dashoffset 1s linear;
+        }
+        .timer-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+        }
+        .timer-text .time {
+            font-size: 56px;
+            font-weight: 200;
+            letter-spacing: -2px;
+            font-variant-numeric: tabular-nums;
+        }
+        .timer-text .label {
+            font-size: 12px;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-top: 4px;
+        }
+        .controls {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+        .btn {
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        .btn-primary {
+            padding: 14px 40px;
+            background: var(--accent);
+            color: white;
+        }
+        .btn-primary:hover { opacity: 0.9; transform: scale(1.02); }
+        .btn-ghost {
+            padding: 14px 20px;
+            background: var(--surface);
+            color: var(--muted);
+            border: 1px solid var(--border);
+        }
+        .btn-ghost:hover { color: var(--text); border-color: var(--muted); }
+        .session-count {
+            font-size: 13px;
+            color: var(--muted);
+        }
+        .session-count span { color: var(--accent); font-weight: 600; }
+
+        /* Stats Panel */
+        .stats-panel {
+            background: var(--surface);
+            border-left: 1px solid var(--border);
+            padding: 28px 24px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+        .stats-panel::-webkit-scrollbar { width: 4px; }
+        .stats-panel::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+        .stats-header {
+            font-size: 14px;
+            font-weight: 600;
+            letter-spacing: -0.3px;
+        }
+        .stat-card {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+        }
+        .stat-card .stat-label {
+            font-size: 11px;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 6px;
+        }
+        .stat-card .stat-value {
+            font-size: 28px;
+            font-weight: 300;
+        }
+        .stat-card .stat-sub {
+            font-size: 12px;
+            color: var(--muted);
+            margin-top: 2px;
+        }
+        .stat-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        .stat-grid .stat-card .stat-value { font-size: 22px; }
+        .streak-bar {
+            display: flex;
+            gap: 3px;
+            margin-top: 10px;
+        }
+        .streak-day {
+            flex: 1;
+            height: 24px;
+            border-radius: 4px;
+            background: var(--border);
+        }
+        .streak-day.active { background: var(--accent); }
+        .streak-day.today { border: 1px solid var(--accent); }
+        .streak-labels {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 4px;
+            font-size: 10px;
+            color: var(--muted);
+        }
+        .hourly-chart {
+            display: flex;
+            align-items: flex-end;
+            gap: 2px;
+            height: 60px;
+            margin-top: 10px;
+        }
+        .hourly-bar {
+            flex: 1;
+            background: var(--accent-dim);
+            border-radius: 2px;
+            min-height: 2px;
+            transition: height 0.3s;
+        }
+        .hourly-bar.peak { background: var(--accent); }
+        .section-title {
+            font-size: 12px;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 2px;
+        }
+        .history-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .history-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 12px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 12px;
+        }
+        .history-item .hi-time { color: var(--muted); }
+        .history-item .hi-dur { font-weight: 500; }
+        .tag { 
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 500;
+        }
+        .tag-focus { background: var(--accent-dim); color: var(--accent); }
+        .tag-break { background: #34d39922; color: var(--success); }
+    </style>
+</head>
+<body>
+    <div class="app">
+        <div class="timer-panel">
+            <div class="mode-tabs">
+                <button class="mode-tab active" data-mode="focus" data-duration="25">Focus</button>
+                <button class="mode-tab" data-mode="short" data-duration="5">Short Break</button>
+                <button class="mode-tab" data-mode="long" data-duration="15">Long Break</button>
+            </div>
+            <div class="timer-display">
+                <svg class="timer-ring" viewBox="0 0 280 280">
+                    <circle class="timer-ring-bg" cx="140" cy="140" r="130"/>
+                    <circle class="timer-ring-progress" cx="140" cy="140" r="130"/>
+                </svg>
+                <div class="timer-text">
+                    <div class="time" id="timer">25:00</div>
+                    <div class="label">focus session</div>
+                </div>
+            </div>
+            <div class="controls">
+                <button class="btn btn-ghost" id="resetBtn">Reset</button>
+                <button class="btn btn-primary" id="startBtn">Start</button>
+            </div>
+            <div class="session-count">Today: <span id="todaySessions">0</span> sessions · <span id="todayMinutes">0</span> min focused</div>
+        </div>
+        <div class="stats-panel">
+            <div class="stats-header">📊 Statistics</div>
+            <div class="stat-card">
+                <div class="stat-label">Total Focus Time</div>
+                <div class="stat-value" id="totalTime">0h 0m</div>
+                <div class="stat-sub" id="totalSessions">0 sessions completed</div>
+            </div>
+            <div class="stat-grid">
+                <div class="stat-card">
+                    <div class="stat-label">Current Streak</div>
+                    <div class="stat-value" id="streak">0</div>
+                    <div class="stat-sub">days</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Best Streak</div>
+                    <div class="stat-value" id="bestStreak">0</div>
+                    <div class="stat-sub">days</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Avg / Day</div>
+                    <div class="stat-value" id="avgDay">0m</div>
+                    <div class="stat-sub">focus time</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">This Week</div>
+                    <div class="stat-value" id="weekTime">0h</div>
+                    <div class="stat-sub">focused</div>
+                </div>
+            </div>
+            <div>
+                <div class="section-title">Last 7 Days</div>
+                <div class="streak-bar" id="streakBar"></div>
+                <div class="streak-labels"><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span></div>
+            </div>
+            <div>
+                <div class="section-title">Peak Hours</div>
+                <div class="hourly-chart" id="hourlyChart"></div>
+            </div>
+            <div>
+                <div class="section-title">Recent Sessions</div>
+                <div class="history-list" id="historyList"></div>
+            </div>
+        </div>
+    </div>
+    <script src="app.js"></script>
+</body>
+</html>
